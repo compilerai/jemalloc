@@ -247,9 +247,13 @@ pages_map_slow(size_t size, size_t alignment, bool *commit) {
 
 void *
 pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
+#define DETERMINISTIC_PAGES_START_ADDR (void*)0x12345678000
+  static uint8_t* next_addr = DETERMINISTIC_PAGES_START_ADDR;
 	assert(alignment >= PAGE);
 	assert(ALIGNMENT_ADDR2BASE(addr, alignment) == addr);
-
+  //printf("%s %s() %d: entry addr = %p, next_addr = %p, size = %zd\n", __FILE__, __func__, __LINE__, addr, next_addr, size);
+  assert(!addr);
+  addr = next_addr;
 #if defined(__FreeBSD__) && defined(MAP_EXCL)
 	/*
 	 * FreeBSD has mechanisms both to mmap at specific address without
@@ -276,6 +280,7 @@ pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
 			ret = NULL;
 		}
 
+    next_addr += size;
 		return ret;
 	}
 #endif
@@ -295,6 +300,9 @@ pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
 
 	void *ret = os_pages_map(addr, size, os_page, commit);
 	if (ret == NULL || ret == addr) {
+    if (ret == addr) {
+      next_addr += size;
+    }
 		return ret;
 	}
 	assert(addr == NULL);
